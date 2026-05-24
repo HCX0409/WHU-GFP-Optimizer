@@ -35,3 +35,21 @@
 - v1.0 (240520): 完成基础特征提取与模型训练规范对齐
 - v1.1 (240520): 新增双编码器竞赛优化管线，保留基础规范接口
 - 后续调参请统一修改 src/train_standard.py 的 params 字典，确保 provenance 可追溯
+
+=== 竞赛下游预测器文件格式说明 ===
+文件路径: models/gfp_brightness_predictor.joblib
+用途: 封装 0.698 R² 的 MLP 亮度预测头与特征标准化参数，供 optimize.py 直接加载推理
+加载方式: import joblib; pkg = joblib.load("models/gfp_brightness_predictor.joblib")
+
+字典结构 (Keys & Types):
+- model: OrderedDict  (PyTorch MLP state_dict，标准可移植权重)
+- metrics: dict  (R2, MAE, RMSE)
+- params: dict  (网络结构、学习率、批次、损失函数、早停耐心值)
+- provenance: dict  (随机种子42、数据来源、样本量)
+- metadata: dict  (训练日期、框架pytorch、版本号)
+
+说明:
+1. 该文件仅 5MB，包含完整下游预测器。队友共享此文件即可跳过 train 步骤。
+2. 基础编码器(ESM2/SaProt)为冻结特征提取器，每台机器仅需下载一次至对应目录。
+3. 格式完全透明，支持任意环境 joblib.load() 后提取权重或替换推理逻辑。
+
