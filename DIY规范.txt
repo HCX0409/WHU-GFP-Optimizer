@@ -1,0 +1,37 @@
+【GFP 亮度预测与优化管线规范】
+维护人：何承炫
+
+=== 基础规范（团队统一要求） ===
+1. 特征提取 (src/extract_features.py)
+   - 模型：esm2_t30_150M_UR50D
+   - 数据：data/full_sequences.csv，固定采样5000条 (random_state=42)
+   - 输出：data/Feats/GFP_Feat_[模型]_[作者]_[日期]_v[序号].joblib
+   - 字典键：X(float32特征), Y(float32原始亮度不取对数), seqs(int8编码补0), metadata(日期/版本/层数)
+   - 序列编码：A:1,C:2,D:3,E:4,F:5,G:6,H:7,I:8,K:9,L:10,M:11,N:12,P:13,Q:14,R:15,S:16,T:17,V:18,W:19,Y:20
+
+2. 模型训练 (src/train_standard.py)
+   - 算法：RandomForest 或 PyTorch MLP，固定种子 random_state=42 / torch.manual_seed(42)
+   - 输出：data/Models/GFP_[拟合模型]_[嵌入模型]_[作者]_[日期]_v[序号].joblib
+   - 字典键：model(拟合模型), metrics(R2/MAE/RMSE), params(训练参数), provenance(种子/维度/数据源), metadata(日期/设备/版本)
+   - 测评：自动输出 R² 等指标，确保全队使用同一组基准数据
+
+=== 竞赛扩展功能（新增，标注🆕） ===
+🆕 3. 双编码器适应度优化 (src/optimize.py)
+   - 新增 SaProt 650M 热稳定代理，与 ESM-2 亮度预测并行
+   - 适应度函数改为：Fitness = 初始亮度 × (热复性代理 + 表面负电荷奖励 + Loop刚性奖励)
+   - 严格对齐比赛 72℃ 复性评分逻辑与 30% 亮度阈值拦截
+   - 输出：data/GFP_Optimized_Candidates.csv
+
+🆕 4. 多目标排序与提交生成 (src/rank.py)
+   - 综合打分：亮度(0.5) + 稳定性(0.25) + 溶解度/抗聚集(0.15) + 先验(0.1)
+   - 硬约束过滤：长度 220-250 aa / 首字母M / 无终止符 / 亮度≥30% sfGFP
+   - 输出：data/GFP_Competition_Submission.csv (标准比赛格式)
+
+🆕 5. 排除列表校验 (src/check_exclusion.py)
+   - 自动比对 Exclusion_List.csv，确保 100% 不重复
+   - 支持 .zip 自动解压，兼容 GitHub 25MB 限制
+
+=== 迭代记录 ===
+- v1.0 (240520): 完成基础特征提取与模型训练规范对齐
+- v1.1 (240520): 新增双编码器竞赛优化管线，保留基础规范接口
+- 后续调参请统一修改 src/train_standard.py 的 params 字典，确保 provenance 可追溯
